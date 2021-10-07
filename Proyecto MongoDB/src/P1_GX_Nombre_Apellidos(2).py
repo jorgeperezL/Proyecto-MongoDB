@@ -100,6 +100,6 @@ Q1 = []
 # Q2: etc...
 
 if __name__ == '__main__':
-    #TODO
+    print('hola')
     pass #No olvidar eliminar esta linea una vez implementado
 
