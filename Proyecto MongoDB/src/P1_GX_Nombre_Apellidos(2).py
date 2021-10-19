@@ -1,6 +1,9 @@
 from paramiko import file
 from gym.envs import kwargs
 from pip._internal.network.session import user_agent
+import pymongo
+import json
+import bson
 __author__ = 'jorge_perez y miguel_abdon'
 
 from pymongo import MongoClient, command_cursor, GEO2D
@@ -72,8 +75,7 @@ class Model:
         for required in self.required_vars:
             if not kwargs.get(required.lower()):
                 print("Falta Campo requerido")
-                return
-        print("Coleccion creada")           
+                return          
         self.__dict__.update(kwargs)
 
     def save(self):
@@ -133,9 +135,9 @@ longitud = 40.78
 
 Q1 = [{"$match":{"ciudad.ciudad":"huelva"}},{"$project":{"nombre":1,"ciudad":1}}]
 Q2 = [{"$match":{"$or":[{"estudios.universidad":"UPM"},{"estudios.universidad":"UAM"}]}},{"$project":{"nombre":1}}]
-Q3 = [{"$group":{"_id":{"nombre":"$nombre","ciudad.ciudad":"$ciudad"},"nnumero":{"$sum":1}}},{"$project":{"nombre":1, "ciudad":1, "num_repetidos":1}}]
+Q3 = [{"$match":{"ciudad.ciudad":{"$exists":True}}},{"$group":{"_id":"$ciudad", "personas":{"$sum":1}}},{"$project":{"ciudad":1}}]
 Q4 = [{"$geoNear": {"near": { "type": "Point", "coordinates": [ latitud, longitud ] },"spherical": True,"distanceField": "calcDistance"}}]
-Q5 = [{"$group":{"estudios.final":{"$lte":"2017-01-01"},"_id":"$fechas"}},{"$out":"fechas"},{"$project":{"nombre":1}}]
+Q5 = [{"$match":{"estudios.fin":{"$gte":"2017-01-01"}}},{"$out":{"db":"p1", "coll":"list_2017"}}]
 Q6 = []
 Q7 = []
 
@@ -194,6 +196,42 @@ def persona_diccionario():
         diccionary['trabajo'].append(dict1)    
     
     return diccionary
+
+def persona_diccionario_buscar():
+    diccionary = {}
+    dni_inp = input("DNI: ")
+    if bool(dni_inp):
+        diccionary['ref'] = dni_inp 
+    nombre_inp = input("Nombre: ")
+    if bool(nombre_inp):
+        diccionary["nombre.nombre"] = nombre_inp
+    apellido_inp = input("Apellido: ")
+    if bool(apellido_inp):
+        diccionary["nombre.apellido"]= apellido_inp
+    universidad_inp = input("Universidad: ")
+    if bool(universidad_inp):
+        diccionary["estudios.universidad"] = universidad_inp 
+    inicio_inp = input("Inicio: ")
+    if bool(inicio_inp):
+        diccionary["estudios.inicio"] = inicio_inp
+    fin_inp = input("Fin: ")
+    if bool(fin_inp):
+        diccionary["estudios.fin"] = fin_inp   
+    ciudad_inp = input("Ciudad: ")
+    if bool(ciudad_inp):
+        diccionary["ciudad.ciudad"] = ciudad_inp
+    empresa_inp = input("Empresa:")
+    if bool(empresa_inp):
+        diccionary["trabajo.empresa"] = empresa_inp
+    inicio_inp = input("Inicio: ")
+    if bool(inicio_inp):
+        diccionary["trabajo.inicio"] = inicio_inp
+    fin_inp = input("Fin: ")
+    if bool(fin_inp):
+        diccionary["trabajo.fin"] = fin_inp     
+    
+    return diccionary
+
 
 def empresa_diccionario():
     diccionary = {}
@@ -293,7 +331,7 @@ def buscar():
     opcion = int(input("Elige una opcion: "))
         
     if opcion == 1:  
-        diccionary = persona_diccionario()     
+        diccionary = persona_diccionario_buscar()    
         cursor = Persona.find(diccionary)
         return cursor
                
@@ -339,6 +377,7 @@ def consultas_predeterminadas():
         return results
     if opcion == 5:
         results = Persona.db.aggregate(Q5)
+        print("Coleccion list_2017 Creada")
         return results
     if opcion == 6:
         results = Persona.db.aggregate(Q6)
@@ -382,83 +421,83 @@ def consola():
         if opcion < 1 or opcion > 6:
             print("Error")
         
-def iniciacion_mongodb():
+def iniciacion_mongodb(): 
     client = MongoClient('localhost')
     client.p1
     Univeridad.init_class(client.p1.universidad, 'universidad.txt')
     Empresa.init_class(client.p1.empresa, 'empresa.txt')
     Persona.init_class(client.p1.persona, 'persona.txt')
-    client.p1.persona.create_index([("loc", GEO2D)])
+    client.p1.persona.create_index([("ciudad.loc", pymongo.GEOSPHERE)])
     
 def elementos_prueba():
     persona1 = {
     "ref": "51542506N",
     "nombre": { "nombre": "Jorge", "apellido": "Perez" },
     "estudios": [
-      { "universidad": "utad", "inicio": "12-34-4567", "fin": "12-34-5678" }
+      { "universidad": "utad", "inicio": "2014-04-01", "fin": "2019-05-04" }
     ],
     "ciudad": {
       "ciudad": "madrid",
       "loc": { "type": "Point", "coordinates": [ 40.4167047, -3.7035825 ] }
     },
     "trabajo": [
-      { "empresa": "Accenture", "inicio": "23-06-2014", "fin": "12-12-2017" }
+      { "empresa": "Accenture", "inicio": "2014-06-23", "fin": "2017-12-12" }
     ]
     }
     persona2 = {
     "ref": "51672506N",
     "nombre": { "nombre": "Miguel", "apellido": "Abdon" },
     "estudios": [
-      { "universidad": "UPM", "inicio": "12-04-2016", "fin": "12-06-2015" }
+      { "universidad": "UPM", "inicio": "2013-04-12", "fin": "2015-06-12" }
     ],
     "ciudad": {
       "ciudad": "huelva",
       "loc": { "type": "Point", "coordinates": [ 37.2575874, -6.9484945 ] }
     },
     "trabajo": [
-      { "empresa": "Everis", "inicio": "23-04-2018", "fin": "12-04-2021" }
+      { "empresa": "Everis", "inicio": "2018-04-23", "fin": "2021-04-12" }
     ]
     }
     persona3 = {
     "ref": "51547706N",
     "nombre": { "nombre": "Miguel", "apellido": "Herencia" },
     "estudios": [
-      { "universidad": "UAM", "inicio": "12-05-2015", "fin": "12-07-2019" }
+      { "universidad": "UAM", "inicio": "2015-05-12", "fin": "2019-07-12" }
     ],
     "ciudad": {
       "ciudad": "huelva",
       "loc": { "type": "Point", "coordinates": [ 37.2575874, -6.9484945 ] }
     },
     "trabajo": [
-      { "empresa": "Everis", "inicio": "25-05-2012", "fin": "12-07-2016" }
+      { "empresa": "Everis", "inicio": "2012-05-25", "fin": "2016-07-12" }
     ]
     }
     persona4 = {
     "ref": "51511506N",
     "nombre": { "nombre": "Manuel", "apellido": "Perez" },
     "estudios": [
-      { "universidad": "UAM", "inicio": "12-11-2011", "fin": "12-10-2015" }
+      { "universidad": "UAM", "inicio": "2011-11-12", "fin": "2015-10-12" }
     ],
     "ciudad": {
       "ciudad": "toledo",
       "loc": { "type": "Point", "coordinates": [ 39.8560679, -4.0239568 ] }
     },
     "trabajo": [
-      { "empresa": "Indra", "inicio": "11-09-2015", "fin": "12-07-2020" }
+      { "empresa": "Indra", "inicio": "2015-09-11", "fin": "2020-07-12" }
     ]
     }
     persona5 = {
     "ref": "51588806N",
     "nombre": { "nombre": "Pablo", "apellido": "Perez" },
     "estudios": [
-      { "universidad": "UPM", "inicio": "12-11-2011", "fin": "12-04-2017" }
+      { "universidad": "UPM", "inicio": "2011-11-12", "fin": "2017-04-12" }
     ],
     "ciudad": {
       "ciudad": "madrid",
       "loc": { "type": "Point", "coordinates": [ 40.4167047, -3.7035825 ] }
     },
     "trabajo": [
-      { "empresa": "Everis", "inicio": "11-05-2015", "fin": "12-07-2019" }
+      { "empresa": "Everis", "inicio": "2015-05-11", "fin": "2019-07-12" }
     ]
     }
     
@@ -500,14 +539,12 @@ def elementos_prueba():
     Univeridad(**centro1).save()
     Univeridad(**centro2).save()
     
-    
-    
 
 
 if __name__ == '__main__':
     
     iniciacion_mongodb()
-    #elementos_prueba()
+    elementos_prueba()
     consola()
     
 
